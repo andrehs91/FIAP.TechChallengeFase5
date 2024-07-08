@@ -2,9 +2,9 @@
 
 Este repositório contêm o projeto desenvolvido para o Tech Challenge da quinta fase do curso **Arquitetura de Sistemas .NET com Azure**, desenvolvido pelo aluno **André Henrique dos Santos (RM351909)**.
 
-A solução utilizada nesta fase está contida no repositório https://github.com/andrehs91/FIAP.TechChallengeFase4 e também está disponível no https://hub.docker.com:
-**Aplicação:** ` docker pull andrehs/fiap.aplicacao:latest `
-**Worker:** ` docker pull andrehs/fiap.worker:latest `
+A solução utilizada nesta fase está contida no repositório https://github.com/andrehs91/FIAP.TechChallengeFase4 e também está disponível no https://hub.docker.com:  
+**Aplicação:** ` docker pull andrehs/fiap.aplicacao:latest `  
+**Worker:** ` docker pull andrehs/fiap.worker:latest `  
 
 ---
 
