@@ -1,0 +1,560 @@
+# RabbitMQ Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: fiap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.13-management
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: username
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: password
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "512Mi"
+          limits:
+            cpu: "0.4"
+            memory: "1024Mi"
+        livenessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "status"]
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 15
+        readinessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "ping"]
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          timeoutSeconds: 10
+      volumes:
+      - name: rabbitmq-data
+        persistentVolumeClaim:
+          claimName: rabbitmq-data-pvc
+
+---
+
+# RabbitMQ Service ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: rabbitmq
+  name: rabbitmq
+  namespace: fiap
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq
+  ports:
+  - name: 5672-5672
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+
+---
+
+# RabbitMQ Service NodePort
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: rabbitmq
+  name: rabbitmq-nodeport
+  namespace: fiap
+spec:
+  type: NodePort
+  selector:
+    app: rabbitmq
+  ports:
+  - name: 15672-30000
+    port: 15672
+    protocol: TCP
+    targetPort: 15672
+    nodePort: 30000
+
+---
+
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: fiap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis/redis-stack:latest
+        ports:
+        - containerPort: 6379
+        - containerPort: 8001
+        env:
+        - name: REDIS_ARGS
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: args
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "512Mi"
+          limits:
+            cpu: "0.4"
+            memory: "1024Mi"
+        livenessProbe:
+          exec:
+            command:
+              - "redis-cli"
+              - "ping"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+              - "redis-cli"
+              - "ping"
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-data-pvc
+
+---
+
+# Redis Service ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis
+  name: redis
+  namespace: fiap
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+  - name: 6379-6379
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+
+---
+
+# Redis Service NodePort
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis
+  name: redis-nodeport
+  namespace: fiap
+spec:
+  type: NodePort
+  selector:
+    app: redis
+  ports:
+  - name: 8001-30001
+    port: 8001
+    protocol: TCP
+    targetPort: 8001
+    nodePort: 30001
+
+---
+
+# MariaDB Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: fiap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:latest
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MARIADB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: MARIADB_DATABASE
+        - name: MARIADB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: user
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: root_password
+        volumeMounts:
+        - name: mariadb-data
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "512Mi"
+          limits:
+            cpu: "0.4"
+            memory: "1024Mi"
+      volumes:
+      - name: mariadb-data
+        persistentVolumeClaim:
+          claimName: mariadb-data-pvc
+
+---
+
+# MariaDB Service ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mariadb
+  name: mariadb
+  namespace: fiap
+spec:
+  type: ClusterIP
+  selector:
+    app: mariadb
+  ports:
+  - name: 3306-3306
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+
+---
+
+# MariaDB Service NodePort
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mariadb
+  name: mariadb-nodeport
+  namespace: fiap
+spec:
+  type: NodePort
+  selector:
+    app: mariadb
+  ports:
+  - name: 3306-30002
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+    nodePort: 30002
+
+---
+
+# Aplicação Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aplicacao
+  namespace: fiap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aplicacao
+  template:
+    metadata:
+      labels:
+        app: aplicacao
+    spec:
+      containers:
+      - name: aplicacao
+        image: andrehs/fiap.aplicacao
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+        env:
+        - name: RABBITMQ_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: RABBITMQ_HOSTNAME
+        - name: RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: password
+        - name: REDIS_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: REDIS_HOSTNAME
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
+        - name: MARIADB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: MARIADB_SERVER
+        - name: MARIADB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: MARIADB_DATABASE
+        - name: MARIADB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: user
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        resources:
+          requests:
+            cpu: "0.05"
+            memory: "128Mi"
+          limits:
+            cpu: "0.2"
+            memory: "512Mi"
+
+---
+
+# Aplicação Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: aplicacao
+  name: aplicacao
+  namespace: fiap
+spec:
+  selector:
+    app: aplicacao
+  ports:
+  - name: 8080-8080
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: 8081-8081
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+
+---
+
+# Worker Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: fiap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: andrehs/fiap.worker
+        env:
+        - name: RABBITMQ_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: RABBITMQ_HOSTNAME
+        - name: RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: password
+        - name: REDIS_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: REDIS_HOSTNAME
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
+        - name: MARIADB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: MARIADB_SERVER
+        - name: MARIADB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: environment-variables
+              key: MARIADB_DATABASE
+        - name: MARIADB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: user
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-secret
+              key: password
+        resources:
+          requests:
+            cpu: "0.05"
+            memory: "128Mi"
+          limits:
+            cpu: "0.2"
+            memory: "512Mi"
+
+---
+
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fiap-ingress
+  namespace: fiap
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: localhost
+    http:
+      paths:
+      - backend:
+          service:
+            name: aplicacao
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+status:
+  loadBalancer: {}
+
+---
+
+# Aplicação Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aplicacao-hpa
+  namespace: fiap
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aplicacao
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+---
+
+# Worker Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-hpa
+  namespace: fiap
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 50

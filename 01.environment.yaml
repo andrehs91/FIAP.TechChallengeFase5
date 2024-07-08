@@ -1,0 +1,59 @@
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fiap
+
+---
+
+# Environment Variables ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: environment-variables
+  namespace: fiap
+data:
+  RABBITMQ_HOSTNAME: rabbitmq
+  REDIS_HOSTNAME: redis
+  MARIADB_SERVER: mariadb
+  MARIADB_DATABASE: TechChallenge
+
+---
+
+# RabbitMQ Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-secret
+  namespace: fiap
+type: kubernetes.io/basic-auth
+stringData:
+  username: usuariorabbitmq
+  password: senharabbitmq
+
+---
+
+# Redis Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: fiap
+type: kubernetes.io/basic-auth
+stringData:
+  args: --requirepass senharedis
+  password: senharedis
+
+---
+
+# MariaDB Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret
+  namespace: fiap
+type: kubernetes.io/basic-auth
+stringData:
+  user: usuariomariadb
+  password: senhamariadb
+  root_password: senharoot
